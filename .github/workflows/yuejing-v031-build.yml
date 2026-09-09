@@ -1,0 +1,44 @@
+name: Build Yuejing AI v0.3.1 APK
+
+on:
+  push:
+    branches: [yuejing-v031-build]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Decode source
+        run: |
+          set -euxo pipefail
+          cat ci/v031_chunk_* | base64 -d > /tmp/yuejing-v031.zip
+          mkdir -p /tmp/yuejing
+          unzip -q /tmp/yuejing-v031.zip -d /tmp/yuejing
+          test -f /tmp/yuejing/YuejingAIService-v0.3.1/android/settings.gradle.kts
+      - name: Bootstrap sherpa
+        run: |
+          set -euxo pipefail
+          cd /tmp/yuejing/YuejingAIService-v0.3.1
+          chmod +x tools/bootstrap_sherpa.sh
+          ./tools/bootstrap_sherpa.sh
+      - name: Build APK
+        run: |
+          set -euxo pipefail
+          cd /tmp/yuejing/YuejingAIService-v0.3.1/android
+          gradle --no-daemon clean :app:assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/YuejingAI-v0.3.1.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YuejingAI-v0.3.1-apk
+          path: YuejingAI-v0.3.1.apk
+          retention-days: 7
