@@ -38,11 +38,20 @@ jobs:
           cd /tmp/yuejing/YuejingAIService-v0.3.1
           chmod +x tools/bootstrap_sherpa.sh
           ./tools/bootstrap_sherpa.sh
-      - name: Build APK
+      - name: Patch and build APK
         shell: bash
         run: |
           set -euxo pipefail
           cd /tmp/yuejing/YuejingAIService-v0.3.1/android
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/com/one23/yuejing/ai/MainActivity.kt')
+          s = p.read_text()
+          needle = '            VoiceState.WAITING_WAKE -> "等待唤醒"\n'
+          if 'VoiceState.ARMING ->' not in s:
+              s = s.replace(needle, needle + '            VoiceState.ARMING -> "正在准备"\n')
+          p.write_text(s)
+          PY
           gradle --no-daemon clean :app:assembleDebug
           cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/YuejingAI-v0.3.1.apk"
           ls -lh "$GITHUB_WORKSPACE/YuejingAI-v0.3.1.apk"
